@@ -5,11 +5,8 @@ import (
 	"reinvest/core/farm/config"
 )
 
-func Connect(rpcURL *config.NetInfo) (client *ethclient.Client, cf func(), err error) {
-	client, err = ethclient.Dial(rpcURL.RPC)
+func Connect(cfg *config.NetInfo) (client *ethclient.Client, cf func(), err error) {
+	client, err = ethclient.Dial(cfg.RPC)
 	cf = func() { client.Close() }
-	if err != nil {
-		return
-	}
 	return
 }
