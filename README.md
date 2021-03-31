@@ -8,6 +8,7 @@
 
 ## 使用方法
 
+
 在对应的平台完成交易对配对并质押挖矿
 
 #### 1. 访问 [release](https://github.com/MycoinTool/revinest/releases) 下载对应平台的软件包 (支持 Windwos/Mac OSX/Linux 系统)
