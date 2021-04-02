@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
+	"reinvest/core/farm/alpaca"
 	"reinvest/core/farm/config"
 	"reinvest/core/farm/mdex"
 	"reinvest/core/farm/mdex_boardroom_mdx"
@@ -36,6 +37,9 @@ func InitFarm(farmConfig *config.FarmConfig, client *ethclient.Client, tokenBasi
 	if farmConfig.NetWork.Name == "Pancake" {
 		return pancake.NewPanckeFarm(farmConfig, client, tokenBasic, printer), config.Pause, nil
 	}
+	if farmConfig.NetWork.Name == "Alpaca"{
+		return alpaca.NewAlpacaFarm(farmConfig, client, tokenBasic, printer), config.Pause, nil
 
+	}
 	return nil, config.Pause, errors.New("Unknown Network")
 }

@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"reinvest/core/farm/mdex_boardroom_mdx/contracts"
 	"reinvest/utils"
-	"strings"
 )
 
 type PoolInfo struct {
@@ -45,7 +44,7 @@ func (c *MdexFarm) GetPoolInfo(farmAddress string, pool int) (*PoolInfo, error) 
 	}, nil
 }
 func (c *MdexFarm) Swap(amount *big.Int, fromToken string, toToken string, tryCount int) (*big.Int, string, error) {
-	if strings.ToLower(toToken) != strings.ToLower(fromToken) {
+	if  utils.ToValidateAddress(toToken) !=  utils.ToValidateAddress(fromToken) {
 		sendAmountToWallet, swapTxHash, err := c.swapWithRetry(amount, fromToken, toToken, tryCount)
 		if err != nil {
 			return nil, swapTxHash, fmt.Errorf("Swap error %w Tx: %s", err, swapTxHash)

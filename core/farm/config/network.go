@@ -42,6 +42,13 @@ var NET_MAPPING = map[int]*NetInfo{
 		Name:        "Pancake",
 		RPC:         "https://bsc-dataseed1.binance.org",
 	},
+	4:&NetInfo{
+		Router:      "0x05ff2b0db69458a0750badebc4f9e13add608c7f",
+		RewardToken: "0x8f0528ce5ef7b51152a59745befdd91d97091d2f",
+		FarmAddress: "0xA625AB01B08ce023B2a342Dbb12a16f2C8489A8F",
+		Name:        "Alpaca",
+		RPC:         "https://bsc-dataseed1.binance.org",
+	},
 }
 
 func NewNetWork() (*NetInfo, func(), error) {

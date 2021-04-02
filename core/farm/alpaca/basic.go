@@ -1,4 +1,4 @@
-package mdex_boardroom_wht
+package alpaca
 
 import (
 	"context"
@@ -9,25 +9,25 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"log"
 	"math/big"
-	"reinvest/core/farm/mdex_boardroom_wht/contracts"
+	"reinvest/core/farm/alpaca/contracts"
 	"reinvest/utils"
 )
 
 type PoolInfo struct {
-	FarmContract      *contracts.BoardroomFarm
+	FarmContract      *contracts.AplpacaFarm
 	LpToken           string
 	AllocPoint        string
 	LastRewardBlock   string
-	AccWhtPerShare    string
+	AccMdxPerShare    string
 	AccMultLpPerShare string
 	TotalAmount       string
 }
 
-func (c *MdexFarm) GetPoolInfo(farmAddress string, pool int) (*PoolInfo, error) {
+func (c *AlpacaFarm) GetPoolInfo(farmAddress string, pool int) (*PoolInfo, error) {
 	if !utils.IsValidAddress(farmAddress) {
 		return nil, errors.New("Farm Address Is InValid!")
 	}
-	farm, err := contracts.NewBoardroomFarm(common.HexToAddress(farmAddress), c.Client)
+	farm, err := contracts.NewAplpacaFarm(common.HexToAddress(farmAddress), c.Client)
 	if err != nil {
 		return nil, fmt.Errorf("Get Farm Error : %w", err)
 	}
@@ -37,13 +37,12 @@ func (c *MdexFarm) GetPoolInfo(farmAddress string, pool int) (*PoolInfo, error) 
 	}
 	return &PoolInfo{
 		FarmContract:    farm,
-		LpToken:         poolInfo.LpToken.String(),
+		LpToken:         poolInfo.StakeToken.String(),
 		AllocPoint:      poolInfo.AllocPoint.String(),
 		LastRewardBlock: poolInfo.LastRewardBlock.String(),
-		AccWhtPerShare:  poolInfo.AccWhtPerShare.String(),
 	}, nil
 }
-func (c *MdexFarm) Swap(amount *big.Int, fromToken string, toToken string, tryCount int) (*big.Int, string, error) {
+func (c *AlpacaFarm) Swap(amount *big.Int, fromToken string, toToken string, tryCount int) (*big.Int, string, error) {
 	if  utils.ToValidateAddress(toToken) !=  utils.ToValidateAddress(fromToken) {
 		sendAmountToWallet, swapTxHash, err := c.swapWithRetry(amount, fromToken, toToken, tryCount)
 		if err != nil {
@@ -56,7 +55,7 @@ func (c *MdexFarm) Swap(amount *big.Int, fromToken string, toToken string, tryCo
 }
 
 //配对
-func (c *MdexFarm) addLiquidity(wishA *big.Int, wishB *big.Int, tokenA, tokenB string) (*types.Transaction, error) {
+func (c *AlpacaFarm) addLiquidity(wishA *big.Int, wishB *big.Int, tokenA, tokenB string) (*types.Transaction, error) {
 	if wishA.Cmp(big.NewInt(0)) <= 0 {
 		return nil, fmt.Errorf("Error Token A Wish Amount ")
 	}
@@ -83,8 +82,14 @@ func (c *MdexFarm) addLiquidity(wishA *big.Int, wishB *big.Int, tokenA, tokenB s
 		return nil, err
 	}
 	factory, err := NewSwapFactory(swapRouter.Factory, c.Client, c)
-	//needSendTo := harvestBalance
-	currentCanPairTokenB, err := factory.TokenBPairAmount(tokenA, tokenB, wishA)
+	if err != nil {
+		return nil, err
+	}
+	lpToken, err := NewLpToken(c.LpTokenInfo.Address, c.Client)
+	if err != nil {
+		return nil, err
+	}
+	currentCanPairTokenB, err := swapRouter.TokenBPairAmount(tokenA, tokenB, wishA, lpToken)
 	if err != nil {
 		return nil, err
 	}
@@ -94,12 +99,11 @@ func (c *MdexFarm) addLiquidity(wishA *big.Int, wishB *big.Int, tokenA, tokenB s
 	return swapRouter.AddLiquidity(tokenA, tokenB, wishA, wishB, minA, minB)
 }
 
-func (c *MdexFarm) swapWithRetry(amount *big.Int, fromToken string, toToken string, tryCount int) (*big.Int, string, error) {
+func (c *AlpacaFarm) swapWithRetry(amount *big.Int, fromToken string, toToken string, tryCount int) (*big.Int, string, error) {
 	count := 1
 	keepSwap := true
 	var swapTxHash string
 	for {
-
 		if count >= tryCount {
 			return nil, swapTxHash, errors.New("Swap  Too Many errors")
 		}
@@ -115,7 +119,6 @@ func (c *MdexFarm) swapWithRetry(amount *big.Int, fromToken string, toToken stri
 			}
 			swapTxHash = tx.Hash().String()
 		}
-		//fmt.Println(blue(fmt.Sprintf("Swap MDX -> %s Tx: %s ", tokenBInfo.Symbol, green(swapTx.Hash().String()))))
 		swapTxStatus, _tx := c.TokenBasic.WaitForBlockCompletation(swapTxHash)
 		if swapTxStatus == 1 {
 			keepSwap = false
@@ -132,7 +135,7 @@ func (c *MdexFarm) swapWithRetry(amount *big.Int, fromToken string, toToken stri
 
 	}
 }
-func (c *MdexFarm) SwapExactTokenTo(rewardAmount *big.Int, from, to string) (*types.Transaction, error) {
+func (c *AlpacaFarm) SwapExactTokenTo(rewardAmount *big.Int, from, to string) (*types.Transaction, error) {
 	approved, err := c.TokenBasic.Approve(from, c.FarmConfig.NetWork.Router, rewardAmount)
 	if err != nil {
 		return nil, fmt.Errorf("Approve Swap Token Error : %w", err)
@@ -147,7 +150,7 @@ func (c *MdexFarm) SwapExactTokenTo(rewardAmount *big.Int, from, to string) (*ty
 	}
 	factory, err := NewSwapFactory(swapRouter.Factory, c.Client, c)
 
-	wishAmount, err := factory.WishExchange(rewardAmount, from, to)
+	wishAmount, err := swapRouter.WishExchange(rewardAmount, from, to)
 	minExchange := factory.Calc(wishAmount[1], 0.005)
 
 	tx, err := swapRouter.SwapExactTokenTo(from, to, rewardAmount, minExchange)
@@ -158,7 +161,7 @@ func (c *MdexFarm) SwapExactTokenTo(rewardAmount *big.Int, from, to string) (*ty
 
 }
 
-func (c *MdexFarm) Pending(farmAddress string, wallet string, pool int) (*PendingReward, error) {
+func (c *AlpacaFarm) Pending(farmAddress string, wallet string, pool int) (*PendingReward, error) {
 	if !utils.IsValidAddress(farmAddress) {
 		return &PendingReward{
 			Amount: big.NewInt(0),
@@ -176,7 +179,7 @@ func (c *MdexFarm) Pending(farmAddress string, wallet string, pool int) (*Pendin
 			Amount: big.NewInt(0),
 		}, fmt.Errorf("Get Pool Info Error : %v", err)
 	}
-	amount, err := poolInfo.FarmContract.Pending(&bind.CallOpts{}, new(big.Int).SetInt64(int64(pool)), common.HexToAddress(wallet))
+	amount, err := poolInfo.FarmContract.PendingAlpaca(&bind.CallOpts{}, new(big.Int).SetInt64(int64(pool)), common.HexToAddress(wallet))
 	if err != nil {
 		return &PendingReward{
 			Amount: big.NewInt(0),
@@ -188,7 +191,7 @@ func (c *MdexFarm) Pending(farmAddress string, wallet string, pool int) (*Pendin
 		Amount: amount,
 	}, nil
 }
-func (c *MdexFarm) Deposit(farmAddress string, amount *big.Int, pool int) (*types.Transaction, error) {
+func (c *AlpacaFarm) Deposit(farmAddress string, amount *big.Int, pool int) (*types.Transaction, error) {
 
 	if !utils.IsValidAddress(farmAddress) {
 		return nil, errors.New("Farm Address Is InValid!")
@@ -210,12 +213,12 @@ func (c *MdexFarm) Deposit(farmAddress string, amount *big.Int, pool int) (*type
 	if err != nil {
 		return nil, fmt.Errorf("Get Create Transaction Error %w", err)
 	}
-	auth.GasPrice = new(big.Int).Mul(gasPrice, big.NewInt(2))
+	auth.GasPrice = gasPrice
 	auth.From = common.HexToAddress(wallet)
 	auth.GasLimit = uint64(300000)
 	auth.Context = context.Background()
 	auth.Nonce = big.NewInt(int64(nonce))
-	tx, err := poolInfo.FarmContract.Deposit(auth, big.NewInt(int64(pool)), amount)
+	tx, err := poolInfo.FarmContract.Deposit(auth, common.HexToAddress(c.FarmConfig.Wallet), big.NewInt(int64(pool)), amount)
 	if err != nil {
 		return nil, fmt.Errorf("Deposit Err %w", err)
 	}
@@ -229,7 +232,7 @@ type FarmUserInfo struct {
 }
 
 //获取我的信息
-func (c *MdexFarm) GetFarmUserInfo(farmAddress string, wallet string, pool int) (*FarmUserInfo, error) {
+func (c *AlpacaFarm) GetFarmUserInfo(farmAddress string, wallet string, pool int) (*FarmUserInfo, error) {
 	if !utils.IsValidAddress(farmAddress) {
 		return nil, errors.New("Farm Address Is InValid!")
 	}
@@ -248,7 +251,7 @@ func (c *MdexFarm) GetFarmUserInfo(farmAddress string, wallet string, pool int) 
 	}
 
 	return &FarmUserInfo{
-		Amount:           userInfo.Amount,
-		RewardDebt:       userInfo.RewardDebt.String(),
+		Amount:     userInfo.Amount,
+		RewardDebt: userInfo.RewardDebt.String(),
 	}, nil
 }

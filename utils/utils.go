@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/big"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -29,6 +31,34 @@ func PublicKeyBytesToAddress(publicKey []byte) common.Address {
 
 	return common.HexToAddress(hex.EncodeToString(address))
 }
+
+
+func ToValidateAddress(address string) string {
+	addrLowerStr := strings.ToLower(address)
+	if strings.HasPrefix(addrLowerStr, "0x") {
+		addrLowerStr = addrLowerStr[2:]
+		address = address[2:]
+	}
+	var binaryStr string
+	addrBytes := []byte(addrLowerStr)
+
+	hash256 := crypto.Keccak256Hash([]byte(addrLowerStr))//注意，这里是直接对字符串转换成byte切片然后哈希
+
+	for i, e := range addrLowerStr {
+		//如果是数字则跳过
+		if e>='0' && e<='9' {
+			continue
+		} else {
+			binaryStr = fmt.Sprintf("%08b", hash256[i/2])//注意，这里一定要填充0
+			if binaryStr[4*(i % 2)] == '1'{
+				addrBytes[i] -= 32
+			}
+		}
+	}
+
+	return "0x"+string(addrBytes)
+}
+
 
 // IsValidAddress validate hex address
 func IsValidAddress(iaddress interface{}) bool {
