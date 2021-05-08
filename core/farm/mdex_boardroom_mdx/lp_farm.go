@@ -17,6 +17,7 @@ func (c *MdexFarm) RewardToken() *token.Token {
 }
 func (c *MdexFarm) Harvest() (*big.Int, error) {
 	c.Printer.Info("Harvest Reward...")
+
 	pendingReward, err := c.Pending(c.FarmConfig.NetWork.FarmAddress, c.FarmConfig.Wallet, int(c.FarmConfig.PooID))
 	if err != nil {
 		return nil, err
@@ -26,15 +27,15 @@ func (c *MdexFarm) Harvest() (*big.Int, error) {
 		tx, err := c.Deposit(c.FarmConfig.NetWork.FarmAddress, big.NewInt(0), int(c.FarmConfig.PooID))
 		if err != nil {
 			c.Printer.Error("Harvest error: " + err.Error())
-			return nil, err
+			return big.NewInt(0), err
 		}
 		txStatus, _tx := c.TokenBasic.WaitForBlockCompletation(tx.Hash().String())
 		if txStatus != 1 {
-			return nil, errors.New("Harvest Err Tx :" + tx.Hash().String())
+			return big.NewInt(0), errors.New("Harvest Err Tx :" + tx.Hash().String())
 		}
 		sendRewardAmountToWallet, err := c.TokenBasic.GetTxAmount(c.RewardTokenInfo.Address, "", c.FarmConfig.Wallet, _tx)
 		if err != nil {
-			return nil, fmt.Errorf("Search Real Reward Amount To Wallet Error: %w", err)
+			return  big.NewInt(0), fmt.Errorf("Search Real Reward Amount To Wallet Error: %w", err)
 		}
 		c.Printer.Success(utils.ToDecimal(sendRewardAmountToWallet, int(c.RewardTokenInfo.Decimals)).String() + " " + c.RewardTokenInfo.Symbol + " -> " + c.FarmConfig.Wallet)
 

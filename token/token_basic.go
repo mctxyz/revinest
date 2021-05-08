@@ -227,7 +227,7 @@ func (c *TokenBasic) WaitForBlockCompletation(hash string) (int, *types.Receipt)
 func (c *TokenBasic) GetTxAmount(tokenAddress, from, to string, tx *types.Receipt) (*big.Int, error) {
 	hrc20, err := NewHrc20(common.HexToAddress(tokenAddress), c.Client)
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), err
 	}
 	end := uint64(tx.BlockNumber.Int64())
 	var fromCommon []common.Address
@@ -237,20 +237,21 @@ func (c *TokenBasic) GetTxAmount(tokenAddress, from, to string, tx *types.Receip
 
 	filter, err := hrc20.FilterTransfer(&bind.FilterOpts{Start: uint64(tx.BlockNumber.Int64()), End: &end}, fromCommon, []common.Address{common.HexToAddress(to)})
 	if err != nil {
-		return nil, err
+		return big.NewInt(0), err
 	}
 	defer filter.Close()
 	for {
 		if filter.Next() {
+
 			if tx.TxHash.String() == filter.Event.Raw.TxHash.String() {
 				return filter.Event.Value, nil
 
 			}
 		} else {
-			return nil, errors.New("not found")
+			return big.NewInt(0), errors.New("not found")
 		}
 	}
-	return nil, errors.New("not found")
+	return big.NewInt(0), errors.New("not found")
 }
 
 func (c *TokenBasic) CheckTransactionReceipt(_txHash string) int {
