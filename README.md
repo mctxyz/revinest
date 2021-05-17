@@ -1,6 +1,6 @@
 # DeFi 挖矿自动复投脚本
 
-源自湾区SWB https://imwsb.org
+源自湾区WSB https://imwsb.org
 
 
 ### 目前仅支持 Heco 链的 [MDEX](https://mdex.com/#/liquidity) 及 BSC 链的 [pancakeswap](https://pancakeswap.finance/farms) LP对复投挖矿
